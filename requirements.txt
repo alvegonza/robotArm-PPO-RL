@@ -1,0 +1,12 @@
+# Instala PyTorch aparte y ANTES, en su versión CPU (ver GUIA.md, fase 0):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+mujoco
+gymnasium
+stable-baselines3
+opencv-python
+numpy
+matplotlib
+imageio
+tensorboard
+tqdm
+rich
