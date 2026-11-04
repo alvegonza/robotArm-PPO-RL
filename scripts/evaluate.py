@@ -54,7 +54,7 @@ def annotate(frame, lines, color=(255, 255, 255)):
 def main():
     args = parse_args()
 
-    # mismos nombres que pone train.py
+    # mismos nombres que train.py
     run_name = f"{args.task}_s{args.seed}"
     model_path = ROOT / "models" / f"ppo_{run_name}.zip"
     stats_path = ROOT / "models" / f"vecnormalize_{run_name}.pkl"
@@ -77,7 +77,7 @@ def main():
     model=PPO.load(str(model_path))
     successes, ep_rewards, ep_lengths, frames = [], [], [], []
     obs=env.reset() #reseteamos el entorno, solo aquí: el VecEnv se resetea solo al acabar cada episodio
-    for ep in range(args.episodes): #Bucle de prueba
+    for ep in range(args.episodes): #Bucle 
         done=False
         total_reward, total_steps=0.0, 0
         recording = ep < args.record
@@ -110,7 +110,7 @@ def main():
     print(f"  Recompensa media: {np.mean(ep_rewards):.2f} +- {np.std(ep_rewards):.2f}")
     print(f"  Pasos medios:     {np.mean(ep_lengths):.1f} +- {np.std(ep_lengths):.1f}")
 
-    # guardo el GIF de los episodios grabados (25 fps = la frecuencia de control)
+    # guardo el GIF de los episodios grabados 
     env.close()
     if frames:
         out_path = ROOT / args.out.format(task=args.task)
