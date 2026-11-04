@@ -70,3 +70,8 @@ Trained models (`models/`), logs (`runs/`), checkpoints and the other GIFs are n
 ## Stack
 
 MuJoCo · Gymnasium · Stable-Baselines3 (PPO) · PyTorch · OpenCV · NumPy
+
+## Author
+
+All the code in this repository was written entirely by me, Álvaro Vega González, as a
+learning project.
