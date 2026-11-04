@@ -6,6 +6,8 @@ from the overhead camera is coming next.
 
 > 🚧 Work in progress. Right now the policies are trained on the true (simulated) cube position.
 
+![Trained PPO policy pushing the cube to the goal](media/ppo_push.gif)
+
 ## What's done
 
 - **Scene (`assets/arm.xml`)**: a custom 4-DoF arm (yaw, shoulder, elbow, wrist) with no gripper,
@@ -54,7 +56,7 @@ python scripts/evaluate.py --task push --episodes 100 --camera both
 tensorboard --logdir runs
 ```
 
-Trained models (`models/`), logs (`runs/`), checkpoints and GIFs are not in the repo.
+Trained models (`models/`), logs (`runs/`), checkpoints and the other GIFs are not in the repo.
 
 ## Next steps
 

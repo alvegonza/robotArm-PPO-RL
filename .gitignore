@@ -18,7 +18,8 @@ models/
 Thumbs.db
 
 # Media
-media/
+media/*
+!media/ppo_push.gif
 
 # Guía personal (no se sube)
 GUIA.md
