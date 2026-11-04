@@ -1,0 +1,27 @@
+# Entorno virtual
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Salidas de entrenamiento (pesan mucho y se regeneran)
+runs/
+models/
+*.zip
+*.pkl
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Media
+media/
+
+# Guía personal (no se sube)
+GUIA.md
+
+# Checkpoints de entrenamiento
+checkpoints/

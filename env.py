@@ -4,9 +4,12 @@ import mujoco
 from pathlib import Path           
 
 class ArmEnv(gym.Env):
-    # CAMBIO: antes esto era el cuerpo de _get_obs. Ahora lee data y devuelve las
-    # magnitudes con nombre, para que step() pueda pedir lo que necesite para la
-    # recompensa sin trocear el vector de observación con indices magicos.
+    # Gymnasium mira aquí qué sabe hacer render(). render_fps = 1/(0.002*20) = 25,
+    # que es la frecuencia a la que decide el agente
+    metadata = {"render_modes": ["rgb_array"], "render_fps": 25}
+
+    # leo todo lo que me interesa de data y lo devuelvo con nombre, así step() coge
+    # lo que necesita para la recompensa sin andar con índices del vector de obs
     def _get_state(self):
 
         joint_angles = self.data.qpos[self.joint_qpos_idx].copy()
@@ -36,9 +39,8 @@ class ArmEnv(gym.Env):
             "goal_cube_diff": goal_cube_diff,   # 2 valores
         }
 
-    # CAMBIO: _get_obs ahora solo ordena el dict en el vector que ve la red.
-    # El orden de esta lista es el que la red aprende: no lo cambies a mitad de
-    # un entrenamiento, o el modelo guardado deja de valer.
+    # junta el dict en el vector que ve la red. Ojo, la red aprende este orden:
+    # si lo cambio, los modelos ya entrenados dejan de valer
     def _get_obs(self):
         state = self._get_state()
 
@@ -65,22 +67,29 @@ class ArmEnv(gym.Env):
 
     def push_reward_func(self, cube_xy, goal_xy, tip_xy, action):
         terminated=False
-        # CAMBIO: dirección normalizada, así el punto queda SIEMPRE a 4.5 cm del cubo
+        # punto de empuje: justo detrás del cubo, en el lado contrario al objetivo.
+        # normalizo la dirección para que quede siempre a 4.5 cm del cubo
         goal_dir = (goal_xy - cube_xy) / np.linalg.norm(goal_xy - cube_xy)
         push_point= cube_xy - 0.045 * goal_dir
         value = -1 * (np.linalg.norm(tip_xy -push_point)) - 5 * (np.linalg.norm(cube_xy -goal_xy)) -0.01 * np.sum(action**2)
-        if(np.linalg.norm(cube_xy - goal_xy) < 0.03):   # CAMBIO: norma de la diferencia
+        if(np.linalg.norm(cube_xy - goal_xy) < 0.03):   # cubo a menos de 3 cm del objetivo
             value+=5
             terminated=True
         return value, terminated
 
 
-    def __init__(self, task="reach"):
+    def __init__(self, task="reach", render_mode=None, camera="showcase", render_size=(480, 640)):
         # cargar MjModel/MjData, definir espacios
-        assert task in ("reach", "push"), f"task desconocida: {task!r}"   # CAMBIO: un typo aquí entrenaría otra cosa en silencio
+        assert task in ("reach", "push"), f"task desconocida: {task!r}"   # si me equivoco al escribirla, que falle y no entrene otra cosa
         self.task = task
+        # el Renderer no lo creo aquí sino la primera vez que llamo a render(),
+        # así al entrenar con 8 entornos no se abren 8 contextos de OpenGL
+        self.render_mode = render_mode
+        self.camera = camera
+        self.render_size = render_size
+        self._renderer = None
         self.frame_skip = 20                               # 20 x 0.002 s = 25 Hz de control
-        self.max_steps = 150                               # CAMBIO: 150 x 0.04 s = 6 s de episodio
+        self.max_steps = 150                               # 150 x 0.04 s = 6 s de episodio
 
         # cargar el modelo
         xml_path = Path(__file__).parent / "assets" / "arm.xml"
@@ -143,11 +152,8 @@ class ArmEnv(gym.Env):
 
     def step(self, action):
         terminated = truncated = False
-        # 1. convertir la acción en objetivos para los servos
-        
-        # CAMBIO: quitado el 0.05 de delante del clip. El 0.05 escala el INCREMENTO
-        # (ya está dentro); multiplicando el resultado encogías el objetivo acumulado
-        # un 95% en cada paso, así que el brazo nunca se alejaba de ctrl = 0.
+        # 1. convertir la acción en objetivos para los servos. La acción es un incremento:
+        # muevo cada objetivo como mucho 0.05 rad por paso y lo dejo dentro de su rango
         self.data.ctrl[:]=np.clip(self.data.ctrl + 0.05 * action, self.model.actuator_ctrlrange[:, 0], self.model.actuator_ctrlrange[:, 1])
         # 2. hacer frame_skip pasos de física
         for _ in range(self.frame_skip):
@@ -159,10 +165,28 @@ class ArmEnv(gym.Env):
             reward, success = self.reach_reward_func(state["cube_tip_diff"])
         else:
             reward, success = self.push_reward_func(state["cube_xy"], state["goal_xy"], state["tip_xy"], action)
-        self.step_counter+=1                    # CAMBIO: se había pegado al final de la línea anterior
-        if success:                             # CAMBIO: ya es un booleano
+        self.step_counter+=1
+        if success:                             # terminated: ha llegado
             terminated=True
-        elif(self.step_counter>=self.max_steps):    # CAMBIO: el 150 ahora está en __init__
+        elif(self.step_counter>=self.max_steps):    # truncated: se acabó el tiempo, no es que haya fallado
             truncated=True
         info={"is_success" : terminated}
-        return obs, float(reward), terminated, truncated, info   # CAMBIO: float de Python, no np.float64
+        return obs, float(reward), terminated, truncated, info   # float normal, check_env no quiere np.float64
+
+    # devuelve una foto de la escena (alto, ancho, 3) en uint8. El Renderer se crea
+    # una sola vez porque crearlo en cada fotograma es lentísimo
+    def render(self, camera=None):
+        # "both": las dos vistas lado a lado
+        if camera == "both":
+            return np.hstack([self.render("showcase"), self.render("overhead")])
+        if self._renderer is None:
+            height, width = self.render_size
+            self._renderer = mujoco.Renderer(self.model, height, width)
+        self._renderer.update_scene(self.data, camera=camera or self.camera)
+        return self._renderer.render()
+
+    # Gymnasium llama a close() al terminar, aquí suelto el contexto gráfico
+    def close(self):
+        if self._renderer is not None:
+            self._renderer.close()
+            self._renderer = None
