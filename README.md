@@ -4,7 +4,7 @@ A 4-joint robotic arm in **MuJoCo** that learns to **reach** and **push** a cube
 using reinforcement learning (**PPO**, Stable-Baselines3). A vision module that finds the cube
 from the overhead camera is coming next.
 
-> 🚧 Work in progress. Right now the policies are trained on the true (simulated) cube position.
+> Right now the policies are trained on the true (simulated) cube position, not the YOLO vision coordinates.
 
 ![Trained PPO policy pushing the cube to the goal](media/ppo_push.gif)
 
